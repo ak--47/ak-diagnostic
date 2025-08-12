@@ -1,0 +1,57 @@
+{
+  "name": "ak-diagnostic",
+  "version": "1.0.0",
+  "description": "A lightweight Node.js diagnostic tool for monitoring runtime performance, memory usage, and system metrics with minimal overhead",
+  "main": "index.js",
+  "module": "index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./index.js",
+      "import": "./index.mjs",
+      "types": "./index.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "node test/common.test.js && node test/esm.test.mjs",
+    "example": "node examples/basic.js",
+    "example:stress": "node examples/stress-test.js"
+  },
+  "keywords": [
+    "diagnostics",
+    "performance",
+    "monitoring",
+    "memory",
+    "cpu",
+    "profiling",
+    "metrics",
+    "runtime",
+    "nodejs",
+    "developer-tools",
+    "debugging",
+    "performance-monitoring",
+    "memory-leak",
+    "system-monitoring"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ak-diagnostic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/ak-diagnostic/issues"
+  },
+  "homepage": "https://github.com/yourusername/ak-diagnostic#readme",
+  "files": [
+    "index.js",
+    "index.mjs",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {}
+}
