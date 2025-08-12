@@ -64,11 +64,11 @@ const diagnostics = new Diagnostics({
   name: 'MemoryIntensiveApp',
   interval: 1000,
   threshold: 200_000_000, // Alert if memory exceeds 200MB
-  alert: (info) => {
+  alert: info => {
     console.warn(`⚠️ Memory threshold exceeded!`);
     console.warn(`Current: ${info.memory.formatted.current}`);
     console.warn(`Threshold: ${info.memory.formatted.threshold}`);
-    
+
     // Could trigger cleanup, send metrics, etc.
     performEmergencyCleanup();
   }
@@ -92,7 +92,7 @@ import { Diagnostics } from 'ak-diagnostic';
 const diagnostics = new Diagnostics({
   name: 'OptimizedApp',
   interval: 5000,
-  target: 50_000_000, // Target 50MB memory usage
+  target: 50_000_000 // Target 50MB memory usage
 });
 
 diagnostics.start();
@@ -120,7 +120,7 @@ const diagnostics = new Diagnostics({
   name: 'ProductionAPI',
   interval: 10000, // Sample every 10 seconds
   threshold: 1_000_000_000, // 1GB threshold
-  alert: async (info) => {
+  alert: async info => {
     // Log to monitoring service
     await sendToMonitoring({
       event: 'memory_threshold_exceeded',
@@ -137,13 +137,10 @@ diagnostics.start();
 // Periodic reporting
 setInterval(async () => {
   const report = diagnostics.report();
-  
+
   // Save report to file
-  await fs.writeFile(
-    `./logs/diagnostics-${Date.now()}.json`,
-    JSON.stringify(report, null, 2)
-  );
-  
+  await fs.writeFile(`./logs/diagnostics-${Date.now()}.json`, JSON.stringify(report, null, 2));
+
   // Send summary to monitoring dashboard
   await sendMetrics({
     memory: report.memory.average.bytes,
@@ -151,7 +148,7 @@ setInterval(async () => {
     eventLoopLag: report.eventLoop.lag.average.ms,
     alerts: report.analysis.numOfAlertTriggers
   });
-  
+
   // Reset for next period
   diagnostics.reset().start();
 }, 3600000); // Every hour
@@ -176,7 +173,7 @@ diagnostics.start();
 app.get('/diagnostics', (req, res) => {
   const report = diagnostics.report();
   diagnostics.reset().start(); // Reset after reporting
-  
+
   res.json({
     status: 'healthy',
     uptime: report.clock.human,
@@ -202,40 +199,47 @@ app.listen(3000);
 ## Best Practices
 
 ### 1. Sampling Interval
+
 - **Development**: 1-2 seconds for detailed monitoring
 - **Production**: 5-10 seconds to minimize overhead
 - **Long-running tasks**: 30-60 seconds for extended operations
 
 ### 2. Memory Thresholds
+
 Set thresholds based on your application's expected memory usage:
+
 ```javascript
 // For a typical web server
-threshold: 500_000_000  // 500MB
+threshold: 500_000_000; // 500MB
 
 // For data processing applications
-threshold: 2_000_000_000  // 2GB
+threshold: 2_000_000_000; // 2GB
 
 // For microservices
-threshold: 200_000_000  // 200MB
+threshold: 200_000_000; // 200MB
 ```
 
 ### 3. Alert Handling
+
 Keep alert handlers lightweight and non-blocking:
+
 ```javascript
-alert: (info) => {
+alert: info => {
   // Good: Quick, non-blocking operations
   console.error('Memory threshold exceeded');
   metrics.increment('memory.alerts');
-  
+
   // Avoid: Heavy operations in alert handler
   // Don't do: await saveToDatabase(info);
   // Instead, queue it for processing
   alertQueue.push(info);
-}
+};
 ```
 
 ### 4. Cleanup
+
 Always stop diagnostics when your application shuts down:
+
 ```javascript
 process.on('SIGTERM', () => {
   diagnostics.stop();
@@ -283,15 +287,19 @@ const report: DiagnosticReport = diagnostics.report();
 ## Troubleshooting
 
 ### Q: The diagnostics seem to be missing samples
+
 **A:** Ensure your application isn't blocking the event loop. Long synchronous operations can prevent sampling intervals from firing.
 
 ### Q: Memory measurements seem incorrect
+
 **A:** The tool measures heap memory by default. For total process memory, check `report.memory.rss` values.
 
 ### Q: CPU percentages exceed 100%
+
 **A:** On multi-core systems, CPU percentage can exceed 100% if your application uses multiple cores. This is normal behavior.
 
 ### Q: Event loop lag is consistently high
+
 **A:** This indicates your application has blocking operations. Consider using worker threads or async operations for CPU-intensive tasks.
 
 ## Contributing
@@ -311,8 +319,8 @@ For issues, questions, or suggestions, please open an issue on GitHub.
 Made with ❤️ for the Node.js community from 'ak-diagnostic';
 
 const diagnostics = new Diagnostics({
-  name: 'MyApp',
-  interval: 3000 // Sample every 3 seconds
+name: 'MyApp',
+interval: 3000 // Sample every 3 seconds
 });
 
 diagnostics.start();
@@ -324,7 +332,8 @@ diagnostics.stop();
 
 const report = diagnostics.report();
 console.log(report.summary);
-```
+
+````
 
 ### CommonJS
 
@@ -344,7 +353,7 @@ someHeavyOperation(() => {
   const report = diagnostics.report();
   console.log(report.summary);
 });
-```
+````
 
 ## API Reference
 
@@ -352,20 +361,22 @@ someHeavyOperation(() => {
 
 ```javascript
 const diagnostics = new Diagnostics({
-  name: 'MyApp',           // Required: A label for the diagnostic session
-  interval: 5000,          // Optional: Sampling interval in ms (default: 5000)
-  threshold: 500_000_000,  // Optional: Memory threshold in bytes for alerts
-  target: 100_000_000,     // Optional: Target memory consumption in bytes
-  alert: (info) => {       // Optional: Callback when threshold is exceeded
+  name: 'MyApp', // Required: A label for the diagnostic session
+  interval: 5000, // Optional: Sampling interval in ms (default: 5000)
+  threshold: 500_000_000, // Optional: Memory threshold in bytes for alerts
+  target: 100_000_000, // Optional: Target memory consumption in bytes
+  alert: info => {
+    // Optional: Callback when threshold is exceeded
     console.log('Alert!', info);
   },
-  monitorEventLoop: true   // Optional: Monitor event loop lag (default: true)
+  monitorEventLoop: true // Optional: Monitor event loop lag (default: true)
 });
 ```
 
 ### Methods
 
 #### `start()`
+
 Begins collecting diagnostic data.
 
 ```javascript
@@ -373,6 +384,7 @@ diagnostics.start();
 ```
 
 #### `stop()`
+
 Stops collecting diagnostic data.
 
 ```javascript
@@ -380,6 +392,7 @@ diagnostics.stop();
 ```
 
 #### `report()`
+
 Generates a comprehensive diagnostic report with all collected metrics.
 
 ```javascript
@@ -387,6 +400,7 @@ const report = diagnostics.report();
 ```
 
 #### `reset()`
+
 Clears all collected data and resets the diagnostics instance.
 
 ```javascript
@@ -394,6 +408,7 @@ diagnostics.reset();
 ```
 
 #### `status()`
+
 Returns the current status of the diagnostics collector.
 
 ```javascript
@@ -408,20 +423,20 @@ The `report()` method returns a comprehensive object with the following structur
 ```javascript
 {
   name: 'MyApp',
-  
+
   // Memory statistics (heapUsed)
   memory: {
     peak: { bytes: 104857600, human: '100.00 MB' },
     average: { bytes: 52428800, human: '50.00 MB' },
     low: { bytes: 31457280, human: '30.00 MB' },
-    
+
     // Heap memory details
     heap: {
       peak: { bytes: 104857600, human: '100.00 MB' },
       average: { bytes: 52428800, human: '50.00 MB' },
       low: { bytes: 31457280, human: '30.00 MB' }
     },
-    
+
     // Resident Set Size (total memory allocated)
     rss: {
       peak: { bytes: 157286400, human: '150.00 MB' },
@@ -429,14 +444,14 @@ The `report()` method returns a comprehensive object with the following structur
       low: { bytes: 104857600, human: '100.00 MB' }
     }
   },
-  
+
   // CPU usage statistics
   cpu: {
     peak: { percentage: 45.67, human: '45.67%' },
     average: { percentage: 22.34, human: '22.34%' },
     low: { percentage: 5.12, human: '5.12%' }
   },
-  
+
   // Event loop lag statistics
   eventLoop: {
     lag: {
@@ -445,7 +460,7 @@ The `report()` method returns a comprehensive object with the following structur
       min: { ms: 0.1, human: '0ms' }
     }
   },
-  
+
   // System information
   infos: {
     platform: 'darwin',
@@ -456,7 +471,7 @@ The `report()` method returns a comprehensive object with the following structur
     totalMemory: 17179869184,
     // ... more system details
   },
-  
+
   // Timing information
   clock: {
     startTime: 1699123456789,
@@ -464,7 +479,7 @@ The `report()` method returns a comprehensive object with the following structur
     duration: 100000,
     human: '1m 40s'
   },
-  
+
   // Analysis metrics
   analysis: {
     numSamples: 20,
@@ -477,7 +492,7 @@ The `report()` method returns a comprehensive object with the following structur
     threshold: { bytes: 500000000, human: '476.84 MB' },
     target: { bytes: 100000000, human: '95.37 MB' }
   },
-  
+
   // Quick summary for overview
   summary: {
     duration: '1m 40s',
@@ -489,3 +504,4 @@ The `report()` method returns a comprehensive object with the following structur
     alerts: 3
   }
 }
+```

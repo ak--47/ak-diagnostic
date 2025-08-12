@@ -8,9 +8,12 @@ const v8 = require('v8');
 const { performance } = require('perf_hooks');
 
 /**
- * Formats bytes to human readable string
- * @param {number} bytes
- * @returns {string}
+ * Formats bytes to human readable string with appropriate units
+ * @param {number} bytes - The number of bytes to format
+ * @returns {string} Human-readable string with units (B, KB, MB, GB, TB)
+ * @example
+ * formatBytes(1024) // Returns "1.00 KB"
+ * formatBytes(1536) // Returns "1.50 KB"
  */
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
@@ -21,9 +24,12 @@ function formatBytes(bytes) {
 }
 
 /**
- * Formats milliseconds to human readable duration
- * @param {number} ms
- * @returns {string}
+ * Formats milliseconds to human readable duration string
+ * @param {number} ms - The number of milliseconds to format
+ * @returns {string} Human-readable duration string (e.g., "1m 30s", "2h 15m")
+ * @example
+ * formatDuration(90000) // Returns "1m 30s"
+ * formatDuration(3661000) // Returns "1h 1m 1s"
  */
 function formatDuration(ms) {
   const seconds = Math.floor(ms / 1000);
@@ -45,45 +51,71 @@ function formatDuration(ms) {
 }
 
 /**
- * Safely executes a function and returns null on error
- * @param {Function} fn
- * @param {*} defaultValue
- * @returns {*}
+ * Safely executes a function and returns a default value on error
+ * @param {Function} fn - The function to execute safely
+ * @param {*} [defaultValue=null] - The value to return if execution fails
+ * @returns {*} The result of the function or the default value
+ * @example
+ * safeExecute(() => JSON.parse('{'), {}) // Returns {} instead of throwing
  */
 function safeExecute(fn, defaultValue = null) {
   try {
     return fn();
-  } catch (e) {
+  } catch {
     return defaultValue;
   }
 }
 
 /**
- * Memory snapshot data structure
+ * Captures a point-in-time snapshot of memory usage
+ * @class MemorySnapshot
  */
 class MemorySnapshot {
+  /**
+   * Creates a new memory snapshot with current memory usage
+   * @constructor
+   */
   constructor() {
     const memUsage = process.memoryUsage();
+    /** @type {number} Timestamp when snapshot was taken */
     this.timestamp = Date.now();
+    /** @type {number} Resident Set Size - total memory allocated */
     this.rss = memUsage.rss;
+    /** @type {number} Total heap size allocated */
     this.heapTotal = memUsage.heapTotal;
+    /** @type {number} Heap memory currently used */
     this.heapUsed = memUsage.heapUsed;
+    /** @type {number} Memory used by C++ objects bound to JavaScript */
     this.external = memUsage.external;
+    /** @type {number} Memory used by ArrayBuffer and SharedArrayBuffer */
     this.arrayBuffers = memUsage.arrayBuffers || 0;
   }
 
+  /**
+   * Gets the total memory used (alias for heapUsed)
+   * @returns {number} The total memory used in bytes
+   */
   get total() {
     return this.heapUsed;
   }
 }
 
 /**
- * CPU snapshot data structure
+ * Captures CPU usage metrics and calculates percentage usage
+ * @class CPUSnapshot
  */
 class CPUSnapshot {
+  /**
+   * Creates a new CPU usage snapshot and calculates percentage if previous snapshot provided
+   * @constructor
+   * @param {CPUSnapshot|null} [previousUsage=null] - Previous CPU snapshot for calculating percentage
+   */
   constructor(previousUsage = null) {
+    /** @type {number} Timestamp when snapshot was taken */
     this.timestamp = Date.now();
+    /** @type {object} Raw CPU usage from process.cpuUsage() */
     this.usage = process.cpuUsage();
+    /** @type {number} CPU usage percentage (0-100+) */
     this.percentage = 0;
 
     if (previousUsage) {
@@ -91,7 +123,7 @@ class CPUSnapshot {
       const userDelta = this.usage.user - previousUsage.usage.user;
       const systemDelta = this.usage.system - previousUsage.usage.system;
       const totalDelta = userDelta + systemDelta;
-      
+
       // CPU usage percentage calculation
       // totalDelta is in microseconds, timeDelta is in milliseconds
       this.percentage = (totalDelta / (timeDelta * 1000)) * 100;
@@ -100,34 +132,48 @@ class CPUSnapshot {
 }
 
 /**
- * Event loop lag monitor
+ * Monitors and tracks event loop lag to detect blocking operations
+ * @class EventLoopMonitor
  */
 class EventLoopMonitor {
+  /**
+   * Creates a new event loop monitor
+   * @constructor
+   */
   constructor() {
+    /** @type {number[]} Array of lag measurements in milliseconds */
     this.samples = [];
+    /** @type {NodeJS.Timeout|null} Interval handle for monitoring */
     this.checkInterval = null;
   }
 
+  /**
+   * Starts monitoring event loop lag
+   * @param {number} [interval=100] - Check interval in milliseconds
+   */
   start(interval = 100) {
     if (this.checkInterval) return;
-    
+
     let lastCheck = performance.now();
     this.checkInterval = setInterval(() => {
       const now = performance.now();
       const actualDelay = now - lastCheck;
       const expectedDelay = interval;
       const lag = Math.max(0, actualDelay - expectedDelay);
-      
+
       this.samples.push(lag);
       lastCheck = now;
     }, interval);
-    
+
     // Don't block the process from exiting
     if (this.checkInterval.unref) {
       this.checkInterval.unref();
     }
   }
 
+  /**
+   * Stops monitoring event loop lag
+   */
   stop() {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
@@ -135,6 +181,10 @@ class EventLoopMonitor {
     }
   }
 
+  /**
+   * Calculates statistics from collected lag samples
+   * @returns {{average: number, max: number, min: number}} Lag statistics in milliseconds
+   */
   getStats() {
     if (this.samples.length === 0) {
       return { average: 0, max: 0, min: 0 };
@@ -150,9 +200,29 @@ class EventLoopMonitor {
 }
 
 /**
- * Main Diagnostics class
+ * Main Diagnostics class for collecting runtime performance metrics
+ * @class Diagnostics
  */
 class Diagnostics {
+  /**
+   * Creates a new Diagnostics instance for monitoring runtime performance
+   * @constructor
+   * @param {object} [options={}] - Configuration options
+   * @param {string} options.name - Required label/identifier for this diagnostic session
+   * @param {number} [options.interval=5000] - Sampling interval in milliseconds
+   * @param {number} [options.threshold] - Memory threshold in bytes for triggering alerts
+   * @param {function} [options.alert] - Callback function when threshold is exceeded
+   * @param {number} [options.target] - Target memory consumption in bytes for tracking
+   * @param {boolean} [options.monitorEventLoop=true] - Whether to monitor event loop lag
+   * @throws {Error} When name option is not provided
+   * @example
+   * const diagnostics = new Diagnostics({
+   *   name: 'MyApp',
+   *   interval: 3000,
+   *   threshold: 500_000_000,
+   *   alert: (info) => console.log('Memory alert!', info)
+   * });
+   */
   constructor(options = {}) {
     // Validate required options
     if (!options.name) {
@@ -160,75 +230,101 @@ class Diagnostics {
     }
 
     // Set options with defaults
+    /** @type {string} Label for this diagnostic session */
     this.name = options.name;
+    /** @type {number} Sampling interval in milliseconds */
     this.interval = options.interval || 5000;
+    /** @type {number|null} Memory threshold in bytes for alerts */
     this.threshold = options.threshold || null;
+    /** @type {function} Alert callback function */
     this.alert = options.alert || (() => {});
+    /** @type {number|null} Target memory consumption in bytes */
     this.target = options.target || null;
+    /** @type {boolean} Whether to monitor event loop lag */
     this.monitorEventLoop = options.monitorEventLoop !== false;
 
     // Internal state
+    /** @type {boolean} Whether diagnostics collection is currently running */
     this.running = false;
+    /** @type {number|null} Timestamp when collection started */
     this.startTime = null;
+    /** @type {number|null} Timestamp when collection ended */
     this.endTime = null;
+    /** @type {NodeJS.Timeout|null} Interval handle for periodic sampling */
     this.intervalHandle = null;
+    /** @type {MemorySnapshot[]} Array of collected memory snapshots */
     this.memorySamples = [];
+    /** @type {CPUSnapshot[]} Array of collected CPU snapshots */
     this.cpuSamples = [];
+    /** @type {number} Count of times threshold alert was triggered */
     this.alertTriggerCount = 0;
+    /** @type {number} Total time spent over target memory */
     this.timeOverTarget = 0;
+    /** @type {number|null} Last timestamp for target tracking */
     this.lastTargetCheck = null;
+    /** @type {EventLoopMonitor} Event loop lag monitor instance */
     this.eventLoopMonitor = new EventLoopMonitor();
-    
+
     // Collect initial system info
+    /** @type {object} Static system information */
     this.systemInfo = this._collectSystemInfo();
   }
 
   /**
-   * Collects static system information
+   * Collects static system information including OS, Node.js, and process details
+   * @private
+   * @returns {object} System information object
    */
   _collectSystemInfo() {
-    return safeExecute(() => ({
-      // OS Information
-      platform: os.platform(),
-      arch: os.arch(),
-      release: os.release(),
-      hostname: os.hostname(),
-      cpus: os.cpus().map(cpu => ({
-        model: cpu.model,
-        speed: cpu.speed
-      })),
-      totalMemory: os.totalmem(),
-      
-      // Node.js Information
-      nodeVersion: process.version,
-      v8Version: process.versions.v8,
-      modules: process.versions.modules,
-      
-      // Process Information
-      pid: process.pid,
-      ppid: process.ppid,
-      execPath: process.execPath,
-      argv: process.argv,
-      execArgv: process.execArgv,
-      env: {
-        NODE_ENV: process.env.NODE_ENV,
-        NODE_OPTIONS: process.env.NODE_OPTIONS
-      },
-      
-      // V8 Heap Statistics
-      heapStatistics: v8.getHeapStatistics(),
-      
-      // Resource Limits (if available)
-      resourceLimits: safeExecute(() => ({
-        maxOldSpaceSize: v8.getHeapStatistics().heap_size_limit,
-        maxSemiSpaceSize: v8.getHeapStatistics().malloced_memory,
-        maxExecutableSize: v8.getHeapStatistics().peak_malloced_memory
-      }), {})
-    }), {});
+    return safeExecute(
+      () => ({
+        // OS Information
+        platform: os.platform(),
+        arch: os.arch(),
+        release: os.release(),
+        hostname: os.hostname(),
+        cpus: os.cpus().map(cpu => ({
+          model: cpu.model,
+          speed: cpu.speed
+        })),
+        totalMemory: os.totalmem(),
+
+        // Node.js Information
+        nodeVersion: process.version,
+        v8Version: process.versions.v8,
+        modules: process.versions.modules,
+
+        // Process Information
+        pid: process.pid,
+        ppid: process.ppid,
+        execPath: process.execPath,
+        argv: process.argv,
+        execArgv: process.execArgv,
+        env: {
+          NODE_ENV: process.env.NODE_ENV,
+          NODE_OPTIONS: process.env.NODE_OPTIONS
+        },
+
+        // V8 Heap Statistics
+        heapStatistics: v8.getHeapStatistics(),
+
+        // Resource Limits (if available)
+        resourceLimits: safeExecute(
+          () => ({
+            maxOldSpaceSize: v8.getHeapStatistics().heap_size_limit,
+            maxSemiSpaceSize: v8.getHeapStatistics().malloced_memory,
+            maxExecutableSize: v8.getHeapStatistics().peak_malloced_memory
+          }),
+          {}
+        )
+      }),
+      {}
+    );
   }
 
   /**
-   * Takes a single sample of memory and CPU
+   * Takes a single sample of memory and CPU usage, checks thresholds and tracks targets
+   * @private
    */
   _takeSample() {
     try {
@@ -272,13 +368,17 @@ class Diagnostics {
         }
         this.lastTargetCheck = now;
       }
-    } catch (error) {
+    } catch {
       // Silently ignore errors to not affect the host application
     }
   }
 
   /**
-   * Starts the diagnostic collection
+   * Starts the diagnostic collection process
+   * @returns {Diagnostics} Returns this instance for method chaining
+   * @example
+   * diagnostics.start();
+   * // Collection begins immediately
    */
   start() {
     if (this.running) {
@@ -315,7 +415,11 @@ class Diagnostics {
   }
 
   /**
-   * Stops the diagnostic collection
+   * Stops the diagnostic collection process
+   * @returns {Diagnostics} Returns this instance for method chaining
+   * @example
+   * diagnostics.stop();
+   * // Collection ends, ready for report generation
    */
   stop() {
     if (!this.running) {
@@ -341,16 +445,20 @@ class Diagnostics {
   }
 
   /**
-   * Calculates statistics from samples
+   * Calculates statistical metrics (peak, average, low) from sample arrays
+   * @private
+   * @param {Array} samples - Array of sample objects
+   * @param {function(any): number} [accessor] - Function to extract value from each sample
+   * @returns {{peak: number, average: number, low: number}} Statistical metrics
    */
-  _calculateStats(samples, accessor = (s) => s) {
+  _calculateStats(samples, accessor = s => s) {
     if (samples.length === 0) {
       return { peak: 0, average: 0, low: 0 };
     }
 
     const values = samples.map(accessor);
     const sum = values.reduce((a, b) => a + b, 0);
-    
+
     return {
       peak: Math.max(...values),
       average: sum / values.length,
@@ -359,7 +467,13 @@ class Diagnostics {
   }
 
   /**
-   * Generates the diagnostic report
+   * Generates a comprehensive diagnostic report with all collected metrics
+   * Automatically stops collection if still running
+   * @returns {object} Complete diagnostic report with memory, CPU, timing, and analysis data
+   * @example
+   * const report = diagnostics.report();
+   * console.log(`Peak memory: ${report.memory.peak.human}`);
+   * console.log(`Duration: ${report.clock.human}`);
    */
   report() {
     // Ensure we have stopped collecting
@@ -384,7 +498,7 @@ class Diagnostics {
     // Build the report object
     const report = {
       name: this.name,
-      
+
       memory: {
         peak: {
           bytes: memoryStats.peak,
@@ -477,14 +591,18 @@ class Diagnostics {
         timeUnderTarget: timeUnderTarget,
         timeUnderTargetHuman: formatDuration(timeUnderTarget),
         samplingInterval: this.interval,
-        threshold: this.threshold ? {
-          bytes: this.threshold,
-          human: formatBytes(this.threshold)
-        } : null,
-        target: this.target ? {
-          bytes: this.target,
-          human: formatBytes(this.target)
-        } : null
+        threshold: this.threshold
+          ? {
+              bytes: this.threshold,
+              human: formatBytes(this.threshold)
+            }
+          : null,
+        target: this.target
+          ? {
+              bytes: this.target,
+              human: formatBytes(this.target)
+            }
+          : null
       },
 
       // Summary for quick overview
@@ -503,7 +621,10 @@ class Diagnostics {
   }
 
   /**
-   * Resets all collected data
+   * Resets all collected data and stops collection if running
+   * @returns {Diagnostics} Returns this instance for method chaining
+   * @example
+   * diagnostics.reset().start(); // Reset and start fresh collection
    */
   reset() {
     this.stop();
@@ -518,7 +639,11 @@ class Diagnostics {
   }
 
   /**
-   * Gets current status
+   * Gets current status information about the diagnostics collection
+   * @returns {{running: boolean, name: string, samplesCollected: number, uptime: number}} Status object
+   * @example
+   * const status = diagnostics.status();
+   * console.log(`Running: ${status.running}, Samples: ${status.samplesCollected}`);
    */
   status() {
     return {

@@ -7,13 +7,23 @@
   "types": "index.d.ts",
   "exports": {
     ".": {
+      "types": "./index.d.ts",
       "require": "./index.js",
-      "import": "./index.mjs",
-      "types": "./index.d.ts"
+      "import": "./index.mjs"
     }
   },
   "scripts": {
-    "test": "node test/common.test.js && node test/esm.test.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run lint && npm run format:check && npm run typecheck && npm test",
+    "prepack": "npm run validate",
     "example": "node examples/basic.js",
     "example:stress": "node examples/stress-test.js"
   },
@@ -31,13 +41,31 @@
     "debugging",
     "performance-monitoring",
     "memory-leak",
-    "system-monitoring"
+    "system-monitoring",
+    "zero-dependency",
+    "event-loop",
+    "heap-monitoring",
+    "lightweight"
   ],
-  "author": "",
+  "author": {
+    "name": "ak-diagnostic",
+    "email": "",
+    "url": ""
+  },
   "license": "MIT",
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=12.0.0",
+    "npm": ">=6.0.0"
   },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/ak-diagnostic.git"
@@ -53,5 +81,16 @@
     "README.md",
     "LICENSE"
   ],
-  "devDependencies": {}
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/yourusername"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/node": "^24.2.1",
+    "eslint": "^9.33.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
 }
