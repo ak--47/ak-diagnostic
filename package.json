@@ -25,7 +25,8 @@
     "validate": "npm run lint && npm run format:check && npm run typecheck && npm test",
     "prepack": "npm run validate",
     "example": "node examples/basic.js",
-    "example:stress": "node examples/stress-test.js"
+    "example:stress": "node examples/stress-test.js",
+    "post": "npm publish"
   },
   "keywords": [
     "diagnostics",
